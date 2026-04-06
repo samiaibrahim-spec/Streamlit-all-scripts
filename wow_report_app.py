@@ -34,19 +34,30 @@ TOTAL_ACTIONS_COMPONENTS = [
     'Quality Sales Call - AN',
 ]
 
+
 TABLES = [
     ('All SEM', {}, 'standard'),
     ('Brand SEM', {'Brand/NB': 'Brand'}, 'standard'),
     ('Nonbrand SEM', {'Brand/NB': 'NB'}, 'standard'),
+    #('NC VBB Campaigns', {'Labels on Campaign: Directly Applied': '2026 VBB Google Campaigns', 'Customer Type': 'NC'}),
+    #('NC VBB Campaigns', {'Test Segment': 'VBB', 'Customer Type': 'NC'}, 'vbb'),
     ('NC VBB Campaigns', {'Labels on Campaign: Directly Applied': '2026 VBB Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     ('NC CBB NB Internet Campaigns', {'Labels on Campaign: Directly Applied': 'CBB NB Internet Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC CBB NB Internet Campaigns', {'Test Segment': 'NB Internet CBB', 'Customer Type': 'NC'}, 'vbb'),
     ('NC UpMarket Campaigns', {'Labels on Campaign: Directly Applied': '2026 UpMarket Campaigns', 'Customer Type': 'NC'}, 'vbb'),
-    ('NC CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'NB CBB', 'Customer Type': 'NC'}, 'vbb'),
-    ('MSFT CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT CBB NB Campaigns Feb 26', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'NB CBB', 'Customer Type': 'NC'}, 'vbb'),
+    ('NB Consolidated Campaigns', {'Labels on Campaign: Directly Applied': 'Nonbrand Consolidation 3.19.26'}, 'standard'),
+    #('MSFT CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT CBB NB Campaigns Feb 26', 'Customer Type': 'NC'}, 'standard'),
+    ('MSFT CBB NB Campaigns', {'Test Segment': 'NB MSFT CBB', 'Customer Type': 'NC'}, 'vbb'),
     ('NC CBB NB Google Campaigns', {'Labels on Campaign: Directly Applied': '2026 CBB NB Remaining Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
-    ('NC CBB MSFT NB Converting Campaigns', {'Labels on Campaign: Directly Applied': 'CB - NC - CBB MSFT NB Converting Campaigns', 'Customer Type': 'NC'}, 'vbb'),
-    ('NC Max Clicks NB MSFT Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT NB Max Clicks Campaigns', 'Customer Type': 'NC'}, 'vbb'),
-    ('NC Non-Testing Campaigns', {'Test Segment': 'Non-Testing', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC CBB NB Google Campaigns', {'Test Segment': '2026 CBB NB Remaining Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC CBB MSFT NB Converting Campaigns', {'Labels on Campaign: Directly Applied': 'CB - NC - CBB MSFT NB Converting Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC CBB MSFT NB Converting Campaigns', {'Test Segment': 'CB - NC - CBB MSFT NB Converting Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC Max Clicks NB MSFT Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT NB Max Clicks Campaigns', 'Customer Type': 'NC'},'Standard'),
+    ('NC Max Clicks NB MSFT Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT NB Max Clicks Campaigns', 'Customer Type': 'NC'},'vbb'),
+    #('NC Max Clicks NB MSFT Campaigns', {'Test Segment': '2026 CBB NB Remaining MSFT Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    #('NC Non-Testing Campaigns', {'Test Segment': 'Non-Testing', 'Customer Type': 'NC'}, 'vbb'),
+   ('NC Non-Testing Campaigns', {'Labels on Campaign: Directly Applied': 'Current NC Non-Testing', 'Customer Type': 'NC'}, 'vbb')
 ]
 
 STANDARD_COLS = [
@@ -73,7 +84,7 @@ VBB_COLS = [
     ('Total Conversions - VBB', 'Total Conversions - VBB'),
     ('Total Conversion Value - VBB', 'Total Conversion Value - VBB'),
     ('Total Actions', 'total_actions'),
-    ('Cost per Action', 'cpactions'),
+    ('Cost per Action', 'cost per action'),
 ]
 
 # Column aliases — maps the standard name to known alternatives
@@ -109,23 +120,6 @@ def classify_brand_nb(campaign):
     return 'Brand'
 
 
-def classify_test_segment(campaign, labels, brand_nb):
-    campaign = str(campaign) if not pd.isna(campaign) else ''
-    labels = str(labels) if not pd.isna(labels) else ''
-
-    if 'CBB NB Internet' in labels or 'NB Internet CBB' in labels:
-        return 'NB Internet CBB'
-    if 'VBB' in labels and 'Google' in campaign:
-        return 'VBB'
-    if 'Broad Match Test' in labels or 'Broad Match' in labels:
-        return 'Broad Match Test'
-    if brand_nb == 'NB' and 'Google' in campaign and 'CBB NB' in labels:
-        return 'NB CBB'
-    if brand_nb == 'NB' and ('Bing' in campaign or 'Microsoft' in campaign) and 'MSFT' in labels:
-        return 'NB MSFT CBB'
-    return 'Non-Testing'
-
-
 def add_classifications(df):
     df = df.copy()
     df['Customer Type'] = df['Campaign'].apply(classify_customer_type)
@@ -135,10 +129,6 @@ def add_classifications(df):
     if labels_col not in df.columns:
         df[labels_col] = ''
 
-    df['Test Segment'] = df.apply(
-        lambda r: classify_test_segment(r['Campaign'], r[labels_col], r['Brand/NB']),
-        axis=1
-    )
     return df
 
 # =============================================================================
@@ -230,7 +220,10 @@ def aggregate(df, filters):
     filt = df.copy()
     for col, val in filters.items():
         if col in filt.columns:
-            filt = filt[filt[col] == val]
+            if col == 'Labels on Campaign: Directly Applied':
+                filt = filt[filt[col].astype(str).str.contains(val, na=False)]
+            else:
+                filt = filt[filt[col] == val]
 
     weeks = sorted(filt['Week (Mon to Sun)'].dropna().unique())
     if len(weeks) < 2:
@@ -435,11 +428,6 @@ def main():
             st.markdown("**Brand / NB**")
             st.dataframe(df['Brand/NB'].value_counts().reset_index().rename(
                 columns={'index': 'Type', 'Brand/NB': 'Type', 'count': 'Rows'}
-            ), hide_index=True)
-        with c3:
-            st.markdown("**Test Segment**")
-            st.dataframe(df['Test Segment'].value_counts().reset_index().rename(
-                columns={'index': 'Segment', 'Test Segment': 'Segment', 'count': 'Rows'}
             ), hide_index=True)
 
     with st.expander("Preview raw data", expanded=False):

@@ -26,9 +26,9 @@ def main():
     st.divider()
 
     if report_type == "Weekly WoW Report":
-        wow_report_app.run()
+        wow_report_app.main()
     elif report_type == "Monthly Campaign Summary":
-        monthly_app.run()
+        monthly_app.main()
     elif report_type == "Keyword Analysis":
         keyword_analysis_app.run()
 
