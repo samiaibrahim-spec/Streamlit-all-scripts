@@ -9,7 +9,7 @@ Usage: streamlit run app.py
 
 import streamlit as st
 import wow_report_app
-import monthly_report_app
+import monthly_app
 import keyword_analysis_app
 
 
@@ -28,7 +28,7 @@ def main():
     if report_type == "Weekly WoW Report":
         wow_report_app.run()
     elif report_type == "Monthly Campaign Summary":
-        monthly_report_app.run()
+        monthly_app.run()
     elif report_type == "Keyword Analysis":
         keyword_analysis_app.run()
 
