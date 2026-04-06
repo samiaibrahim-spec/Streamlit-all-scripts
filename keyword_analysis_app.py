@@ -282,9 +282,7 @@ def create_excel_output(results):
 # STREAMLIT APP
 # =============================================================================
 
-def main():
-    st.set_page_config(page_title="Keyword Analysis Tool", layout="wide")
-
+def run():
     st.title("Keyword Analysis Tool")
     st.markdown("Upload an SA360 keyword export (CSV or Excel) to generate top 10 keyword tables by Customer Type and Brand/NB.")
 
@@ -384,6 +382,11 @@ def main():
         )
 
         st.success(f"Done. {len(results)} segment(s) analyzed.")
+
+
+def main():
+    st.set_page_config(page_title="Keyword Analysis Tool", layout="wide")
+    run()
 
 
 if __name__ == "__main__":
