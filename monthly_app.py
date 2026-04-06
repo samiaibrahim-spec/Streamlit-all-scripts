@@ -6,6 +6,7 @@ Processes SA360 monthly data and generates formatted Excel summaries + text insi
 Usage: streamlit run monthly_report_app.py
 """
 
+import re
 import pandas as pd
 import streamlit as st
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -13,7 +14,11 @@ from openpyxl.utils import get_column_letter
 from io import BytesIO
 import os
 from datetime import datetime
+import chardet
+from io import StringIO
 
+# Placeholder strings that SA360 uses instead of numeric zeros/nulls
+_NUMERIC_PLACEHOLDER_RE = re.compile(r'^\s*(-+|n[./]?a\.?|none|null)\s*$', re.IGNORECASE)
 # =============================================================================
 # CAMPAIGN NAME PARSING
 # =============================================================================
@@ -22,54 +27,44 @@ def parse_campaign_name(campaign_name):
     """
     Parse campaign name to extract customer type, engine, and brand.
     Parts: [0]Brand [1]Channel [2]Type [3]CustomerType [4-6]...details... [last]Engine
-
+    
     Returns: dict with 'customer_type', 'engine', 'brand'
     """
-    if pd.isna(campaign_name):
-        return {'Customer_type': None, 'engine': None, 'brand': None}
-    parts = str(campaign_name).split('_')
-
+    parts = campaign_name.split('_')
+    
     result = {
         'Customer_type': None,
         'engine': None,
         'brand': None
     }
-
-    # Engine: substring check handles tokens like "Bing Old"
+    
+    # Engine: Search through all parts for Google or Bing
     for part in parts:
-        part_lower = part.strip().lower()
-        if 'google' in part_lower:
+        part_clean = part.strip().lower()
+        if 'google' in part_clean:
             result['engine'] = 'Google'
             break
-        elif 'bing' in part_lower:
+        elif 'bing' in part_clean:
             result['engine'] = 'Bing'
             break
-
-    # Customer Type: split each token on spaces to handle "NC Old" etc.
+    
+    # Customer Type: Look for CC or NC (typically 4th position)
     for part in parts:
-        for word in part.strip().split():
-            if word.upper() == 'CC':
-                result['Customer_type'] = 'CC'
-                break
-            elif word.upper() == 'NC':
-                result['Customer_type'] = 'NC'
-                break
-        if result['Customer_type']:
+        part_upper = part.upper()
+        if part_upper in ['CC', 'NC']:
+            result['Customer_type'] = part_upper
             break
-
-    # Brand: split each token on spaces to handle "Nonbr Old" etc.
-    for part in parts:
-        for word in part.strip().split():
-            word_lower = word.lower()
-            if word_lower in ('nonbr', 'nonbrand', 'nb'):
-                result['brand'] = 'NonBrand'
-                break
-            elif word_lower in ('br', 'brand'):
-                result['brand'] = 'Brand'
-                break
-        if result['brand']:
+    
+    # Brand: Look for Brand, Br, Nonbr, or NonBrand patterns
+    for i, part in enumerate(parts):
+        part_lower = part.lower()
+        if part_lower == 'nonbr' or part_lower == 'nonbrand':
+            result['brand'] = 'NonBrand'
             break
-
+        elif part_lower == 'br' or part_lower == 'brand':
+            result['brand'] = 'Brand'
+            break
+    
     return result
 
 
@@ -84,6 +79,11 @@ def add_parsed_columns(df, campaign_col='Campaign'):
     df['Customer Type'] = parsed.apply(lambda x: x['Customer_type'])
     df['Engine'] = parsed.apply(lambda x: x['engine'])
     df['Brand'] = parsed.apply(lambda x: x['brand'])
+    # temporary debug statements
+    print("[DEBUG] Brand value counts:")
+    print(df['Brand'].value_counts(dropna=False))
+    print("[DEBUG] Sample campaigns with None brand:")
+    print(df[df['Brand'].isna()]['Campaign'].head(10).tolist())
     
     unparsed_ctype = df[df['Customer Type'].isna()]
     if len(unparsed_ctype) > 0:
@@ -102,11 +102,29 @@ def add_parsed_columns(df, campaign_col='Campaign'):
 # =============================================================================
 # DATA PREPARATION
 # =============================================================================
-
 def prepare_dataframe(df):
     """
     Prepare dataframe with proper datetime conversion for calendar-correct sorting
     """
+
+    """Full preparation including type coercion and derived columns."""
+    
+    # Finish numeric coercion (the deeper pass)
+    for col in df.select_dtypes(include='object').columns:
+        if col in ('Month', 'Campaign', 'Engine', 'Customer Type', 'Brand'):
+            continue  # skip known string columns
+        # Replace placeholder strings ('-', 'n/a', 'none', etc.) with NaN so
+        # they don't skew the threshold and don't block numeric conversion.
+        cleaned = df[col].copy()
+        placeholder_mask = cleaned.astype(str).str.match(_NUMERIC_PLACEHOLDER_RE)
+        cleaned[placeholder_mask] = pd.NA
+        converted = pd.to_numeric(cleaned, errors='coerce')
+        # Use the post-placeholder count as the denominator so placeholders
+        # don't inflate it and hide that the column is actually numeric.
+        meaningful = int(cleaned.notna().sum())
+        if meaningful > 0 and converted.notna().sum() > meaningful * 0.5:
+            df[col] = converted
+    
     if pd.api.types.is_datetime64_any_dtype(df['Month']):
         df['Month_dt'] = pd.to_datetime(df['Month'])
     else:
@@ -133,46 +151,76 @@ def prepare_dataframe(df):
 # =============================================================================
 # FILE LOADING
 # =============================================================================
+import chardet
+import pandas as pd
+from io import StringIO
 
 def load_file(uploaded_file):
     """Load CSV or Excel file and return dataframe."""
     name = uploaded_file.name.lower()
+    if name.endswith(('.csv', '.tsv')):
+        uploaded_file.seek(0)
+        raw = uploaded_file.read()
+        #Encoding: handle UTF-16 BOM explicitly before chardet
+        #UTF-16 LE BOM: FF FE | UTF-16 BE BOM: FE FF
+        if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+            encoding = 'utf-16'  # Python's utf-16 codec strips BOM automatically
+        else:
+            detected = chardet.detect(raw)
+            enc = detected.get('encoding') or 'utf-8'
+            # Normalize chardet variants so BOM is always stripped
+            encoding = 'utf-16' if enc.upper().startswith('UTF-16') else enc
 
-    if name.endswith('.csv'):
-        for enc in ("utf-8-sig", "utf-8", "utf-16"):
+        try:
+            decoded = raw.decode(encoding)
+        except (UnicodeDecodeError, TypeError):
+            decoded = raw.decode('utf-8', errors='replace')
+
+        #Strip BOM character if it snuck through (belt-and-suspenders)
+        decoded = decoded.lstrip('\ufeff')
+
+        #Delimiter: count tabs vs commas across up to first 5 non-empty lines.
+        #Checking multiple lines handles SA360 files where row 1 is a
+        #metadata label with no delimiter but rows 2+ are tab-separated.
+        lines = decoded.splitlines()
+        non_empty = [l for l in lines if l.strip()]
+        sample_lines = non_empty[:5]
+        tab_count = sum(l.count('\t') for l in sample_lines)
+        comma_count = sum(l.count(',') for l in sample_lines)
+        sep = '\t' if tab_count > comma_count else ','
+
+        content = StringIO(decoded)
+
+        tsv_note = "Note: Tab-delimited file detected and converted automatically." if sep == '\t' else None
+
+        for skip in [0, 2, 1, 3]:
             try:
-                uploaded_file.seek(0)
-                df = pd.read_csv(uploaded_file, encoding=enc, skiprows=2)
-                if 'Campaign' in df.columns and 'Month' in df.columns:
-                    return df, None
-            except (UnicodeDecodeError, Exception):
+                content.seek(0)
+                df = pd.read_csv(content, skiprows=skip, sep=sep)
+                # Strip whitespace/BOM from column names
+                df.columns = df.columns.str.strip().str.lstrip('\ufeff')
+                col_lower = [c.lower() for c in df.columns]
+                if 'campaign' in col_lower and 'month' in col_lower:
+                    return df, tsv_note
+            except Exception:
                 continue
 
-        # Try without skiprows
-        for enc in ("utf-8-sig", "utf-8", "utf-16"):
-            try:
-                uploaded_file.seek(0)
-                df = pd.read_csv(uploaded_file, encoding=enc)
-                if 'Campaign' in df.columns and 'Month' in df.columns:
-                    return df, None
-            except (UnicodeDecodeError, Exception):
-                continue
-
-        return None, "Could not parse CSV. Ensure it contains 'Campaign' and 'Month' columns."
+        return None, "Could not parse file. Ensure it contains 'Campaign' and 'Month' columns."
 
     elif name.endswith(('.xlsx', '.xls')):
         for skip in [0, 2, 1, 3]:
             try:
                 uploaded_file.seek(0)
                 df = pd.read_excel(uploaded_file, skiprows=skip)
+                df.columns = df.columns.str.strip()
                 if 'Campaign' in df.columns and 'Month' in df.columns:
                     return df, None
             except Exception:
                 continue
-
         return None, "Could not parse Excel file. Ensure it contains 'Campaign' and 'Month' columns."
 
     return None, f"Unsupported file type: {name}"
+
 
 # =============================================================================
 # SUMMARY TABLE CREATION
@@ -279,8 +327,8 @@ def create_summary_table(df, customer_type, filter_col, filter_value,
         ('Clicks', 'Clicks'),
         ('avg CPC', None),
         ('avg CTR', None),
-        ('eCom Orders', 'eCom Order - New'),
-        ('Lead Form', 'Lead Form Submission - New'),
+        ('eCom Orders', 'CB eCom Order Tag - New'),
+        ('Lead Form', 'CB General Lead Form Submission - New'),
         ('Address Capture', 'Address Capture'),
         ('Begin Checkout', 'Begin Checkout'),
         ('Total Conversions - VBB', 'Total Conversions - VBB'),
@@ -348,11 +396,13 @@ def create_summary_table(df, customer_type, filter_col, filter_value,
                 data[display_name].append(0)
     
     data[table_name].append('MoM')
-    data[table_name].append('YoY')
-    
     for display_name, _ in summary_metrics:
         data[display_name].append(None)
-        data[display_name].append(None)
+
+    if year_ago_month_dt is not None:
+        data[table_name].append('YoY')
+        for display_name, _ in summary_metrics:
+            data[display_name].append(None)
     
     summary_df = pd.DataFrame(data)
     
@@ -376,25 +426,42 @@ def write_summaries_to_buffer(summary_tables):
 
             ws = writer.sheets[sheet_name]
 
-            num_data_rows = len(table_df)
-            mom_row = num_data_rows
-            yoy_row = num_data_rows + 1
+            # Derive Excel row positions from the actual label values in the
+            # first column so the logic works whether YoY is present or not.
+            # Excel rows are 1-indexed; +2 accounts for 0-based pandas index
+            # and the header row written by to_excel.
+            first_col = table_df.columns[0]
+            row_labels = table_df[first_col].tolist()
+            data_labels = [v for v in row_labels if v not in ('MoM', 'YoY')]
 
-            current_row = 2
-            prev_row = 3
-            year_ago_row = 4
+            current_row  = 2
+            prev_row     = 3 if len(data_labels) >= 2 else None
+            year_ago_row = 4 if len(data_labels) >= 3 else None
+            mom_row      = row_labels.index('MoM') + 2
+            has_yoy      = 'YoY' in row_labels
+            yoy_row      = row_labels.index('YoY') + 2 if has_yoy else None
 
             num_cols = len(table_df.columns)
 
             for col_idx in range(2, num_cols + 1):
                 col_letter = get_column_letter(col_idx)
-                mom_formula = f'=IF(OR({col_letter}{prev_row}=0,{col_letter}{prev_row}=""),"-",({col_letter}{current_row}-{col_letter}{prev_row})/{col_letter}{prev_row})'
+                if prev_row:
+                    mom_formula = (
+                        f'=IF(OR({col_letter}{prev_row}=0,{col_letter}{prev_row}=""),"-",'
+                        f'({col_letter}{current_row}-{col_letter}{prev_row})/{col_letter}{prev_row})'
+                    )
+                else:
+                    mom_formula = '"-"'
                 ws[f'{col_letter}{mom_row}'] = mom_formula
 
-            for col_idx in range(2, num_cols + 1):
-                col_letter = get_column_letter(col_idx)
-                yoy_formula = f'=IF(OR({col_letter}{year_ago_row}=0,{col_letter}{year_ago_row}=""),"-",({col_letter}{current_row}-{col_letter}{year_ago_row})/{col_letter}{year_ago_row})'
-                ws[f'{col_letter}{yoy_row}'] = yoy_formula
+            if has_yoy and yoy_row and year_ago_row:
+                for col_idx in range(2, num_cols + 1):
+                    col_letter = get_column_letter(col_idx)
+                    yoy_formula = (
+                        f'=IF(OR({col_letter}{year_ago_row}=0,{col_letter}{year_ago_row}=""),"-",'
+                        f'({col_letter}{current_row}-{col_letter}{year_ago_row})/{col_letter}{year_ago_row})'
+                    )
+                    ws[f'{col_letter}{yoy_row}'] = yoy_formula
 
         workbook = writer.book
         format_summary_tables(workbook, summary_tables.keys())
@@ -440,25 +507,24 @@ def format_summary_tables(workbook, sheet_names):
             cell.border = thin_border
         
         max_row = ws.max_row
-        mom_row_num = max_row - 1
-        yoy_row_num = max_row
-        
+
         for row_idx in range(2, max_row + 1):
             period_cell = ws.cell(row=row_idx, column=1)
-            
+            row_label = str(period_cell.value or '')
+
+            is_mom = row_label == 'MoM'
+            is_yoy = row_label == 'YoY'
+
             period_cell.fill = period_fill
             period_cell.font = period_font
             period_cell.alignment = left_align
             period_cell.border = thin_border
-            
-            is_mom = row_idx == mom_row_num
-            is_yoy = row_idx == yoy_row_num
-            
+
             for col_idx in range(2, ws.max_column + 1):
                 cell = ws.cell(row=row_idx, column=col_idx)
                 cell.border = thin_border
                 cell.alignment = center_align
-                
+
                 if is_mom:
                     cell.fill = mom_fill
                     cell.number_format = '0.0%'
@@ -466,10 +532,12 @@ def format_summary_tables(workbook, sheet_names):
                     cell.fill = yoy_fill
                     cell.number_format = '0.0%'
                 else:
-                    col_header = ws.cell(row=1, column=col_idx).value
-                    if 'CPC' in str(col_header) or 'CTR' in str(col_header):
-                        cell.number_format = '#,##0.00'
-                    elif 'Spend' in str(col_header):
+                    col_header = str(ws.cell(row=1, column=col_idx).value or '')
+                    if 'CPC' in col_header:
+                        cell.number_format = '$#,##0.00'
+                    elif 'CTR' in col_header:
+                        cell.number_format = '#,##0.00"%"'
+                    elif 'Spend' in col_header:
                         cell.number_format = '$#,##0.00'
                     else:
                         cell.number_format = '#,##0'
@@ -592,6 +660,14 @@ def generate_summary_insights(df):
         df['Campaign Type'] = df['Category (with Brand vs NB)'].apply(
             lambda x: 'Brand' if 'Brand' in str(x) and 'NB' not in str(x) else 'NonBrand'
         )
+        df_sorted['Campaign Type'] = df['Campaign Type']  # Also add to df_sorted
+        current_data = df_sorted[df_sorted['Month_dt'] == current_month_dt]
+        prev_data = df_sorted[df_sorted['Month_dt'] == prev_month_dt]
+    
+    # Also create Campaign Type from Brand column if it exists
+    if 'Campaign Type' not in df.columns and 'Brand' in df.columns:
+        df['Campaign Type'] = df['Brand']
+        df_sorted['Campaign Type'] = df['Campaign Type']  # Also add to df_sorted
         current_data = df_sorted[df_sorted['Month_dt'] == current_month_dt]
         prev_data = df_sorted[df_sorted['Month_dt'] == prev_month_dt]
     
@@ -706,7 +782,9 @@ def generate_summary_insights(df):
 # STREAMLIT APP
 # =============================================================================
 
-def run():
+def main():
+    st.set_page_config(page_title="Monthly Campaign Summary", layout="wide")
+
     st.title("Monthly Campaign Summary Report")
     st.markdown("Upload a monthly SA360 export (CSV or Excel) to generate summary tables and insights.")
 
@@ -724,15 +802,21 @@ def run():
     with st.spinner("Reading file..."):
         df, error = load_file(uploaded)
 
-    if error:
+    if df is None:
         st.error(f"Could not parse file: {error}")
         return
+
+    if error:
+        st.info(error)
 
     st.success(f"Loaded {len(df):,} rows from {uploaded.name}")
 
     # ---- Prepare ----
     df = prepare_dataframe(df)
     df = add_parsed_columns(df, campaign_col='Campaign')
+    # Add this right after add_parsed_columns() is called
+    st.write("Brand counts:", df['Brand'].value_counts(dropna=False))
+    st.dataframe(df[['Campaign', 'Customer Type', 'Engine', 'Brand']].head(20))
 
     # ---- Summary info ----
     unique_months = df.sort_values('Month_dt', ascending=False).drop_duplicates(subset=['Month_dt'])
@@ -778,13 +862,22 @@ def run():
         # Excel summary
         with st.spinner("Creating summary tables..."):
             summary_tables = create_formatted_summaries(df, available_metrics=[])
-
+            summary_tables = create_formatted_summaries(df, available_metrics=[])
+            print("[DEBUG] Summary table keys:", list(summary_tables.keys()))
         if not summary_tables:
             st.error("No summary tables could be created. Check that Customer Type was parsed correctly.")
             return
 
         with st.spinner("Building Excel file..."):
             excel_buf = write_summaries_to_buffer(summary_tables)
+
+        st.markdown("---")
+        st.subheader("Summary Tables")
+
+        # Display summary tables in the UI
+        for table_name, table_df in summary_tables.items():
+            with st.expander(f"📊 {table_name}", expanded=False):
+                st.dataframe(table_df, use_container_width=True)
 
         st.markdown("---")
         st.subheader("Downloads")
@@ -819,7 +912,5 @@ def run():
 def main():
     st.set_page_config(page_title="Monthly Campaign Summary", layout="wide")
     run()
-
-
 if __name__ == "__main__":
     main()
