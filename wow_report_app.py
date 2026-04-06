@@ -383,7 +383,7 @@ def create_report(df):
 def main():
     st.set_page_config(page_title="WoW Report Generator", page_icon="📊", layout="wide")
 
-    st.title("📊 WoW Performance Update Report")
+    st.title(" WoW Performance Update Report")
     st.markdown("Upload an SA360 export (CSV or Excel) to generate the weekly report.")
 
     uploaded = st.file_uploader(
@@ -455,17 +455,17 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
+    if st.button(" Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
         if skipped:
-            with st.expander(f"⚠️ {len(skipped)} table(s) skipped", expanded=False):
+            with st.expander(f" {len(skipped)} table(s) skipped", expanded=False):
                 for name, reason in skipped:
                     st.markdown(f"- **{name}**: {reason}")
 
         st.download_button(
-            label=f"📥 Download {filename}",
+            label=f" Download {filename}",
             data=buf,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
