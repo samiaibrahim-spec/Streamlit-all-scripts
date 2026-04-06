@@ -909,8 +909,6 @@ def main():
         st.success(f"Done. {len(summary_tables)} summary table(s) generated.")
 
 
-def main():
-    st.set_page_config(page_title="Monthly Campaign Summary", layout="wide")
-    run()
+
 if __name__ == "__main__":
     main()
