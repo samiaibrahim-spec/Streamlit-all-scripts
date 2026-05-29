@@ -48,7 +48,9 @@ NC_SPECIFIC_LABELS = [
     '2026 VBB Google Campaigns',
     'CBB NB Internet STD Campaigns',
     '2026 UpMarket Campaigns',
-    'Nonbrand Consolidation 3.19.26',
+    # REMOVED: Nonbrand Consolidation 3.19.26 — reference report does not exclude these
+    # campaigns from NC Non-Testing. Removing this so the script matches reference behavior.
+    # Note: Nonbrand Consolidation 4.6.26 (newer label) was never in this list either.
     '2026 CBB NB Remaining Google Campaigns',
     'MSFT NB Max Clicks Campaigns',
 ]
@@ -522,7 +524,7 @@ def main():
 
     # ---- NC Non-Testing Diagnostic ----
     st.divider()
-    st.subheader("🔍 NC Non-Testing Scope Check")
+    st.subheader("NC Non-Testing Scope Check")
     st.caption("Shows what's being included vs excluded — NC Non-Testing should equal All NC minus the labeled buckets.")
 
     labels_col = 'Labels on Campaign: Directly Applied'
@@ -588,7 +590,7 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button(" Generate Report", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
@@ -599,7 +601,7 @@ def main():
                 st.markdown("Check the `TODO` comments in the `TABLES` config at the top of the script and verify the label strings match what's in your SA360 export.")
 
         st.download_button(
-            label=f"Download {filename}",
+            label=f"⬇️ Download {filename}",
             data=buf,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
