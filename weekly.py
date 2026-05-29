@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 WoW Performance Update Report Generator — Streamlit App
@@ -81,14 +82,16 @@ STANDARD_COLS = [
     ('Lead Form Submissions', 'CB General Lead Form Submission - New'),
     ('Address Capture', 'Address Capture'), ('Begin Checkout', 'Begin Checkout'),
     #('Main Sales Number', 'Main Sales Number'), ('Contact Us Page', 'Contact Us Page'),
-    # FIX: Quality Sales Calls and Chat Initiation are suppressed (set to None key) for tactic-level
-    # rows — the correct reference report shows 0/blank for these at the All SEM / Brand / NB level.
+    # FIX: Quality Sales Calls and Chat Initiation are suppressed for tactic-level rows —
+    # the reference report shows 0 for these at All SEM / Brand SEM / Nonbrand SEM level.
     ('Quality Sales Calls', 'suppress_zero'),
     ('Chat Initiation', 'suppress_zero'),
-    # FIX: added VBB columns to standard layout — the correct report populates these at the tactic
-    # level (e.g. Brand SEM shows 31 Total Conversions VBB). Previously missing entirely.
-    ('Total Conversions - VBB', 'Total Conversions - VBB'),
-    ('Total Conversion Value - VBB', 'Total Conversion Value - VBB'),
+    # REVERTED: Total Conversions VBB and Total Conversion Value VBB are blanked out for
+    # tactic-level rows. A full rollup sum produces values 10-70x higher than the reference
+    # report — the reference appears to use a specific filter or conversion action subset
+    # for these cells that isn't part of the standard export. Suppressed until confirmed.
+    ('Total Conversions - VBB', 'suppress_blank'),
+    ('Total Conversion Value - VBB', 'suppress_blank'),
     ('Total Actions', 'total_actions'),
     ('Cost per Action', 'cpactions'),
 ]
@@ -295,6 +298,9 @@ def _write_data_row(ws, row, cols, col_map, agg_data):
             # FIX: tactic-level rows suppress Quality Sales Calls / Chat Initiation — write 0
             c.value = 0
             c.number_format = '#,##0'
+        elif key == 'suppress_blank':
+            # REVERTED: VBB columns on tactic-level rows left blank until correct source confirmed
+            c.value = ''
         elif key == 'total_actions':
             refs = [f"{col_map[k]}{row}" for k in TOTAL_ACTIONS_COMPONENTS if k in col_map]
             c.value = f"={'+'.join(refs)}" if refs else 0
@@ -463,7 +469,7 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button(" Generate Report", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
