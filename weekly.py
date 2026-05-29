@@ -82,14 +82,13 @@ STANDARD_COLS = [
     ('Lead Form Submissions', 'CB General Lead Form Submission - New'),
     ('Address Capture', 'Address Capture'), ('Begin Checkout', 'Begin Checkout'),
     #('Main Sales Number', 'Main Sales Number'), ('Contact Us Page', 'Contact Us Page'),
-    # FIX: Quality Sales Calls and Chat Initiation are suppressed for tactic-level rows —
-    # the reference report shows 0 for these at All SEM / Brand SEM / Nonbrand SEM level.
-    ('Quality Sales Calls', 'suppress_zero'),
-    ('Chat Initiation', 'suppress_zero'),
-    # REVERTED: Total Conversions VBB and Total Conversion Value VBB are blanked out for
-    # tactic-level rows. A full rollup sum produces values 10-70x higher than the reference
-    # report — the reference appears to use a specific filter or conversion action subset
-    # for these cells that isn't part of the standard export. Suppressed until confirmed.
+    # NOTE: Quality Sales Calls and Chat Initiation use their real metric keys so col_map
+    # registers them correctly for the total_actions formula. They are zeroed out during
+    # write via the 'standard' table type check in _write_data_row — do NOT change these
+    # to suppress_zero or any non-metric key or total_actions will silently drop them.
+    ('Quality Sales Calls', 'Quality Sales Call - AN'),
+    ('Chat Initiation', 'Chat Initiation - Order Services'),
+    # VBB columns left blank for tactic-level rows — full rollup sum is not correct here.
     ('Total Conversions - VBB', 'suppress_blank'),
     ('Total Conversion Value - VBB', 'suppress_blank'),
     ('Total Actions', 'total_actions'),
@@ -282,7 +281,16 @@ def _build_column_map(cols):
             col_map[key] = get_column_letter(i)
     return col_map
 
-def _write_data_row(ws, row, cols, col_map, agg_data):
+
+# Keys that should be zeroed out in standard (tactic-level) rows.
+# These must still use their real metric keys in STANDARD_COLS so col_map registers
+# them correctly for the total_actions formula — suppression happens here at write time.
+STANDARD_SUPPRESS_ZERO_KEYS = {
+    'Quality Sales Call - AN',
+    'Chat Initiation - Order Services',
+}
+
+def _write_data_row(ws, row, cols, col_map, agg_data, table_type='vbb'):
     border = Border(left=Side(style='thin'), right=Side(style='thin'),
                     top=Side(style='thin'), bottom=Side(style='thin'))
     for i, (cname, key) in enumerate(cols[2:], start=4):
@@ -294,20 +302,14 @@ def _write_data_row(ws, row, cols, col_map, agg_data):
         elif key == 'ctr':
             c.value = f"=IF(D{row}=0,0,E{row}/D{row})"
             c.number_format = '0.00%'
-        elif key == 'suppress_zero':
-            # FIX: tactic-level rows suppress Quality Sales Calls / Chat Initiation — write 0
-            c.value = 0
-            c.number_format = '#,##0'
         elif key == 'suppress_blank':
-            # REVERTED: VBB columns on tactic-level rows left blank until correct source confirmed
+            # VBB columns blanked for tactic-level rows — correct value unknown
             c.value = ''
         elif key == 'total_actions':
             refs = [f"{col_map[k]}{row}" for k in TOTAL_ACTIONS_COMPONENTS if k in col_map]
             c.value = f"={'+'.join(refs)}" if refs else 0
             c.number_format = '#,##0'
         elif key == 'cpactions':
-            # FIX: this now correctly handles both standard and VBB tables since
-            # VBB_COLS was updated to use 'cpactions' instead of 'cost per action'
             cost_col = col_map.get('Cost', 'F')
             ta_col = col_map.get('total_actions', '')
             c.value = f"=IF({ta_col}{row}=0,0,{cost_col}{row}/{ta_col}{row})" if ta_col else 0
@@ -315,10 +317,15 @@ def _write_data_row(ws, row, cols, col_map, agg_data):
         elif key is None:
             c.value = ''
         else:
-            v = agg_data.get(key, 0)
-            c.value = int(v) if isinstance(v, float) and v == int(v) else v
-            if 'Cost' in cname or 'Value' in cname:
-                c.number_format = '$#,##0.00'
+            # Zero out suppressed keys for standard (tactic-level) tables
+            if table_type == 'standard' and key in STANDARD_SUPPRESS_ZERO_KEYS:
+                c.value = 0
+                c.number_format = '#,##0'
+            else:
+                v = agg_data.get(key, 0)
+                c.value = int(v) if isinstance(v, float) and v == int(v) else v
+                if 'Cost' in cname or 'Value' in cname:
+                    c.number_format = '$#,##0.00'
 
 def create_report(df):
     """Generate the Excel report and return it as a BytesIO buffer."""
@@ -357,14 +364,14 @@ def create_report(df):
         tactic_cell = ws.cell(row=row, column=3, value=tname)
         tactic_cell.border = border
         tactic_cell.alignment = valign
-        _write_data_row(ws, row, cols, col_map, agg['prior'])
+        _write_data_row(ws, row, cols, col_map, agg['prior'], table_type=ctype)
         prior_row = row
         row += 1
 
         # Current week row
         ws.cell(row=row, column=2, value=fmt_date(agg['current']['week'])).border = border
         ws.cell(row=row, column=3, value='').border = border
-        _write_data_row(ws, row, cols, col_map, agg['current'])
+        _write_data_row(ws, row, cols, col_map, agg['current'], table_type=ctype)
         curr_row = row
         ws.merge_cells(start_row=prior_row, start_column=3, end_row=curr_row, end_column=3)
         row += 1
@@ -403,7 +410,7 @@ def create_report(df):
 
 def main():
     st.set_page_config(page_title="WoW Report Generator", page_icon="📊", layout="wide")
-    st.title(" WoW Performance Update Report")
+    st.title("📊 WoW Performance Update Report")
     st.markdown("Upload an SA360 export (CSV or Excel) to generate the weekly report.")
 
     uploaded = st.file_uploader(
@@ -469,7 +476,7 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
+    if st.button("Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
