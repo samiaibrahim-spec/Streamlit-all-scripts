@@ -39,7 +39,7 @@ TOTAL_ACTIONS_COMPONENTS = [
 # NC Non-Testing as "all NC campaigns NOT in any of these groups"
 NC_SPECIFIC_LABELS = [
     '2026 VBB Google Campaigns',
-    'CBB NB Internet Campaigns',
+    'CBB NB Internet STD Campaigns',
     '2026 UpMarket Campaigns',
     'Nonbrand Consolidation 3.19.26',
    # 'MSFT CBB NB Campaigns',
@@ -72,7 +72,7 @@ STANDARD_COLS = [
     ('eCom Orders', 'CB eCom Order Tag - New'),
     ('Lead Form Submissions', 'CB General Lead Form Submission - New'),
     ('Address Capture', 'Address Capture'), ('Begin Checkout', 'Begin Checkout'),
-    ('Main Sales Number', 'Main Sales Number'), ('Contact Us Page', 'Contact Us Page'),
+    #('Main Sales Number', 'Main Sales Number'), ('Contact Us Page', 'Contact Us Page'),
     ('Quality Sales Calls', 'Quality Sales Call - AN'),
     ('Chat Initiation', 'Chat Initiation - Order Services'),
     ('Total Actions', 'total_actions'),
