@@ -21,7 +21,7 @@ def main():
 
     report_type = st.selectbox(
         "Select a report to run:",
-        ["Weekly WoW Report", "Monthly Campaign Summary", "Keyword Analysis"]
+        ["Weekly Report", "Monthly Campaign Summary", "Keyword Analysis"]
     )
 
     st.divider()
