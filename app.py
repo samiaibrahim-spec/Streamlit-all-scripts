@@ -10,6 +10,7 @@ Usage: streamlit run app.py
 import streamlit as st
 import wow_report_app
 import weekly
+import wow
 import monthly_app
 import keyword_analysis_app
 
@@ -21,13 +22,13 @@ def main():
 
     report_type = st.selectbox(
         "Select a report to run:",
-        ["Weekly Report", "Monthly Campaign Summary", "Keyword Analysis"]
+        ["WoW", "Monthly Campaign Summary", "Keyword Analysis"]
     )
 
     st.divider()
 
-    if report_type == "Weekly Report":
-        weekly.main()
+    if report_type == "WoW":
+        wow.main()
     elif report_type == "Monthly Campaign Summary":
         monthly_app.main()
     elif report_type == "Keyword Analysis":
