@@ -42,7 +42,7 @@ NC_SPECIFIC_LABELS = [
     'CBB NB Internet Campaigns',
     '2026 UpMarket Campaigns',
     'Nonbrand Consolidation 3.19.26',
-    'MSFT CBB NB Campaigns',
+   # 'MSFT CBB NB Campaigns',
     '2026 CBB NB Remaining Google Campaigns',
     'MSFT NB Max Clicks Campaigns',
 ]
@@ -58,7 +58,7 @@ TABLES = [
     ('NB Consolidated Campaigns', {'Labels on Campaign: Directly Applied': 'Nonbrand Consolidation 3.19.26'}, 'standard'),
     # FIX: was using 'Test Segment' column which is not in the SA360 export — switched to label-based filter
     # TODO: verify the label string matches what's in your current SA360 export (e.g. 'MSFT CBB NB Campaigns Feb 26')
-    ('MSFT CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT CBB NB Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    #('MSFT CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT CBB NB Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     ('NC CBB NB Google Campaigns', {'Labels on Campaign: Directly Applied': '2026 CBB NB Remaining Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     ('NC Max Clicks NB MSFT Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT NB Max Clicks Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     # FIX: was filtering on label 'Current NC Non-Testing' which only captured tagged campaigns.
