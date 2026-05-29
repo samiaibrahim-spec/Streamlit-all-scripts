@@ -48,7 +48,7 @@ TABLES = [
     #('NC CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'NB CBB', 'Customer Type': 'NC'}, 'vbb'),
     ('NB Consolidated Campaigns', {'Labels on Campaign: Directly Applied': 'Nonbrand Consolidation 3.19.26'}, 'standard'),
     #('MSFT CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT CBB NB Campaigns Feb 26', 'Customer Type': 'NC'}, 'standard'),
-    ('MSFT CBB NB Campaigns', {'Test Segment': 'NB MSFT CBB', 'Customer Type': 'NC'}, 'vbb'),
+    #('MSFT CBB NB Campaigns', {'Test Segment': 'NB MSFT CBB', 'Customer Type': 'NC'}, 'vbb'),
     ('NC CBB NB Google Campaigns', {'Labels on Campaign: Directly Applied': '2026 CBB NB Remaining Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     #('NC CBB NB Google Campaigns', {'Test Segment': '2026 CBB NB Remaining Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     #('NC CBB MSFT NB Converting Campaigns', {'Labels on Campaign: Directly Applied': 'CB - NC - CBB MSFT NB Converting Campaigns', 'Customer Type': 'NC'}, 'vbb'),
