@@ -53,7 +53,7 @@ TABLES = [
     ('Nonbrand SEM', {'Brand/NB': 'NB'}, 'standard'),
     ('NC VBB Campaigns', {'Labels on Campaign: Directly Applied': '2026 VBB Google Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     # TODO: verify the exact label string for CBB NB Internet Campaigns in your current SA360 export
-    ('NC CBB NB Internet Campaigns', {'Labels on Campaign: Directly Applied': 'CBB NB Internet Campaigns', 'Customer Type': 'NC'}, 'vbb'),
+    ('NC CBB NB Internet Campaigns', {'Labels on Campaign: Directly Applied': 'CBB NB Internet STD Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     ('NC UpMarket Campaigns', {'Labels on Campaign: Directly Applied': '2026 UpMarket Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     ('NB Consolidated Campaigns', {'Labels on Campaign: Directly Applied': 'Nonbrand Consolidation 3.19.26'}, 'standard'),
     # FIX: was using 'Test Segment' column which is not in the SA360 export — switched to label-based filter
