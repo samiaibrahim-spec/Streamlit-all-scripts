@@ -114,7 +114,14 @@ VBB_COLS = [
 # Column aliases — maps the standard name to known alternatives
 COLUMN_ALIASES = {
     'Campaign': ['Campaign', 'Campaign Name', 'campaign'],
-    'Week (Mon to Sun)': ['Week (Mon to Sun)', 'Week', 'week'],
+    #'Week (Mon to Sun)': ['Week (Mon to Sun)', 'Week', 'week'],
+    'Week (Mon to Sun)': [
+    'Week (Mon to Sun)', 
+    'Week (Mon - Sun)',
+    'Week (mon to sun)',
+    'Week (mon - sun)',
+    'Week', 
+    'week'],
     'Cost': ['Cost', 'Spend', 'cost', 'spend'],
     'Clicks': ['Clicks', 'clicks'],
     'Impr.': ['Impr.', 'Impressions', 'Impr', 'impressions', 'impr.'],
