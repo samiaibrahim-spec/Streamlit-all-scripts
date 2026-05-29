@@ -9,6 +9,7 @@ Usage: streamlit run app.py
 
 import streamlit as st
 import wow_report_app
+import weekly
 import monthly_app
 import keyword_analysis_app
 
@@ -25,8 +26,8 @@ def main():
 
     st.divider()
 
-    if report_type == "Weekly WoW Report":
-        wow_report_app.main()
+    if report_type == "Weekly Report":
+        weekly.main()
     elif report_type == "Monthly Campaign Summary":
         monthly_app.main()
     elif report_type == "Keyword Analysis":
