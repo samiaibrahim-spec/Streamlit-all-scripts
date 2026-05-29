@@ -23,7 +23,8 @@ import os
 METRICS = [
     'Impr.', 'Clicks', 'Cost', 'CB eCom Order Tag - New',
     'CB General Lead Form Submission - New', 'Address Capture', 'Begin Checkout',
-    'Main Sales Number', 'Contact Us Page', 'Quality Sales Call - AN',
+    #'Main Sales Number', 'Contact Us Page', 
+    'Quality Sales Call - AN',
     'Total Conversions - VBB', 'Total Conversion Value - VBB',
     'Chat Initiation - Order Services',
 ]
