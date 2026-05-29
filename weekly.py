@@ -22,8 +22,14 @@ import os
 
 METRICS = [
     'Impr.', 'Clicks', 'Cost', 'CB eCom Order Tag - New',
-    'CB General Lead Form Submission - New', 'Address Capture', 'Begin Checkout',
-    #'Main Sales Number', 'Contact Us Page', 
+    'CB General Lead Form Submission - New',
+    # TODO: Address Capture is consistently ~12-200% higher than the reference report across all
+    # sections. This is likely a conversion window or attribution setting difference — the manual
+    # SA360 pull may be using click-through only while this export includes view-through conversions.
+    # Verify the SA360 export settings match the manual pull: check Attribution model and
+    # Conversion window under Campaign > Columns > Conversions before regenerating.
+    'Address Capture', 'Begin Checkout',
+    #'Main Sales Number', 'Contact Us Page',
     'Quality Sales Call - AN',
     'Total Conversions - VBB', 'Total Conversion Value - VBB',
     'Chat Initiation - Order Services',
@@ -42,8 +48,8 @@ NC_SPECIFIC_LABELS = [
     '2026 VBB Google Campaigns',
     'CBB NB Internet STD Campaigns',
     '2026 UpMarket Campaigns',
-    'Nonbrand Consolidation 3.19.26',
-   # 'MSFT CBB NB Campaigns',
+    'Nonbrand Consolidation 3.19.26',   # FIX: was commented out — must be excluded so NB Consolidated
+                                         # campaigns are not double-counted into NC Non-Testing
     '2026 CBB NB Remaining Google Campaigns',
     'MSFT NB Max Clicks Campaigns',
 ]
@@ -56,7 +62,8 @@ TABLES = [
     # TODO: verify the exact label string for CBB NB Internet Campaigns in your current SA360 export
     ('NC CBB NB Internet Campaigns', {'Labels on Campaign: Directly Applied': 'CBB NB Internet STD Campaigns', 'Customer Type': 'NC'}, 'vbb'),
     ('NC UpMarket Campaigns', {'Labels on Campaign: Directly Applied': '2026 UpMarket Campaigns', 'Customer Type': 'NC'}, 'vbb'),
-    ('NB Consolidated Campaigns', {'Labels on Campaign: Directly Applied': 'Nonbrand Consolidation 3.19.26'}, 'standard'),
+    # REMOVED: NB Consolidated Campaigns — this section does not exist in the reference report.
+    # The Nonbrand Consolidation 3.19.26 label is still excluded from NC Non-Testing via NC_SPECIFIC_LABELS.
     # FIX: was using 'Test Segment' column which is not in the SA360 export — switched to label-based filter
     # TODO: verify the label string matches what's in your current SA360 export (e.g. 'MSFT CBB NB Campaigns Feb 26')
     #('MSFT CBB NB Campaigns', {'Labels on Campaign: Directly Applied': 'MSFT CBB NB Campaigns', 'Customer Type': 'NC'}, 'vbb'),
@@ -74,8 +81,14 @@ STANDARD_COLS = [
     ('Lead Form Submissions', 'CB General Lead Form Submission - New'),
     ('Address Capture', 'Address Capture'), ('Begin Checkout', 'Begin Checkout'),
     #('Main Sales Number', 'Main Sales Number'), ('Contact Us Page', 'Contact Us Page'),
-    ('Quality Sales Calls', 'Quality Sales Call - AN'),
-    ('Chat Initiation', 'Chat Initiation - Order Services'),
+    # FIX: Quality Sales Calls and Chat Initiation are suppressed (set to None key) for tactic-level
+    # rows — the correct reference report shows 0/blank for these at the All SEM / Brand / NB level.
+    ('Quality Sales Calls', 'suppress_zero'),
+    ('Chat Initiation', 'suppress_zero'),
+    # FIX: added VBB columns to standard layout — the correct report populates these at the tactic
+    # level (e.g. Brand SEM shows 31 Total Conversions VBB). Previously missing entirely.
+    ('Total Conversions - VBB', 'Total Conversions - VBB'),
+    ('Total Conversion Value - VBB', 'Total Conversion Value - VBB'),
     ('Total Actions', 'total_actions'),
     ('Cost per Action', 'cpactions'),
 ]
@@ -278,6 +291,10 @@ def _write_data_row(ws, row, cols, col_map, agg_data):
         elif key == 'ctr':
             c.value = f"=IF(D{row}=0,0,E{row}/D{row})"
             c.number_format = '0.00%'
+        elif key == 'suppress_zero':
+            # FIX: tactic-level rows suppress Quality Sales Calls / Chat Initiation — write 0
+            c.value = 0
+            c.number_format = '#,##0'
         elif key == 'total_actions':
             refs = [f"{col_map[k]}{row}" for k in TOTAL_ACTIONS_COMPONENTS if k in col_map]
             c.value = f"={'+'.join(refs)}" if refs else 0
@@ -380,7 +397,7 @@ def create_report(df):
 
 def main():
     st.set_page_config(page_title="WoW Report Generator", page_icon="📊", layout="wide")
-    st.title("📊 WoW Performance Update Report")
+    st.title(" WoW Performance Update Report")
     st.markdown("Upload an SA360 export (CSV or Excel) to generate the weekly report.")
 
     uploaded = st.file_uploader(
@@ -446,18 +463,18 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
+    if st.button(" Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
         if skipped:
-            with st.expander(f"⚠️ {len(skipped)} table(s) skipped — label mismatch or no data found", expanded=True):
+            with st.expander(f" {len(skipped)} table(s) skipped — label mismatch or no data found", expanded=True):
                 for name, reason in skipped:
                     st.markdown(f"- **{name}**: {reason}")
                 st.markdown("Check the `TODO` comments in the `TABLES` config at the top of the script and verify the label strings match what's in your SA360 export.")
 
         st.download_button(
-            label=f"⬇️ Download {filename}",
+            label=f" Download {filename}",
             data=buf,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
