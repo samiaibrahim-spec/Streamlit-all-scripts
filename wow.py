@@ -313,13 +313,9 @@ def _build_column_map(cols):
     return col_map
 
 
-# Keys that should be zeroed out in standard (tactic-level) rows.
-# These must still use their real metric keys in STANDARD_COLS so col_map registers
-# them correctly for the total_actions formula — suppression happens here at write time.
-STANDARD_SUPPRESS_ZERO_KEYS = {
-    'Quality Sales Call - AN',
-    'Chat Initiation - Order Services',
-}
+# No keys suppressed for standard rows — all metrics including Quality Sales Calls
+# and Chat Initiation now populate normally from SA360 data.
+STANDARD_SUPPRESS_ZERO_KEYS = set()
 
 def _safe_num(v):
     """Return float(v) or 0 if v is missing/non-numeric."""
@@ -531,7 +527,7 @@ def main():
 
     # ---- Metrics Summary ----
     st.divider()
-    st.subheader("📊 Overall Metrics by Week")
+    st.subheader("Overall Metrics by Week")
     st.caption("Total across all campaigns in the export — use this to sanity check scope before generating.")
 
     summary_metrics = ['Impr.', 'Clicks', 'Cost', 'Address Capture', 'Total Conversions - VBB']
@@ -621,7 +617,7 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button("Generate Report", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
