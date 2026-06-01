@@ -322,34 +322,55 @@ STANDARD_SUPPRESS_ZERO_KEYS = {
     'Chat Initiation - Order Services',
 }
 
+def _safe_num(v):
+    """Return float(v) or 0 if v is missing/non-numeric."""
+    try:
+        return float(v) if v is not None else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
 def _write_data_row(ws, row, cols, col_map, agg_data, table_type='vbb'):
     border = Border(left=Side(style='thin'), right=Side(style='thin'),
                     top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Pre-compute derived values as real numbers — avoids Excel formula
+    # caching issue where openpyxl-written formulas have no cached value
+    # and some Excel/Sheets versions show blank cells instead of calculating.
+    clicks = _safe_num(agg_data.get('Clicks', 0))
+    cost   = _safe_num(agg_data.get('Cost', 0))
+    impr   = _safe_num(agg_data.get('Impr.', 0))
+
+    # Total actions: standard tables suppress QSC and Chat so only sum eCom + Lead
+    if table_type == 'standard':
+        ta = (_safe_num(agg_data.get('CB eCom Order Tag - New', 0)) +
+              _safe_num(agg_data.get('CB General Lead Form Submission - New', 0)))
+    else:
+        ta = sum(_safe_num(agg_data.get(k, 0)) for k in TOTAL_ACTIONS_COMPONENTS)
+
+    cpc = (cost / clicks) if clicks else 0.0
+    ctr = (clicks / impr) if impr   else 0.0
+    cpa = (cost / ta)     if ta     else 0.0
+
     for i, (cname, key) in enumerate(cols[2:], start=4):
         c = ws.cell(row=row, column=i)
         c.border = border
         if key == 'cpc':
-            c.value = f"=IF(E{row}=0,0,F{row}/E{row})"
+            c.value = round(cpc, 2)
             c.number_format = '$#,##0.00'
         elif key == 'ctr':
-            c.value = f"=IF(D{row}=0,0,E{row}/D{row})"
+            c.value = round(ctr, 6)
             c.number_format = '0.00%'
         elif key == 'suppress_blank':
-            # VBB columns blanked for tactic-level rows — correct value unknown
             c.value = ''
         elif key == 'total_actions':
-            refs = [f"{col_map[k]}{row}" for k in TOTAL_ACTIONS_COMPONENTS if k in col_map]
-            c.value = f"={'+'.join(refs)}" if refs else 0
+            c.value = round(ta, 2) if ta != int(ta) else int(ta)
             c.number_format = '#,##0'
         elif key == 'cpactions':
-            cost_col = col_map.get('Cost', 'F')
-            ta_col = col_map.get('total_actions', '')
-            c.value = f"=IF({ta_col}{row}=0,0,{cost_col}{row}/{ta_col}{row})" if ta_col else 0
+            c.value = round(cpa, 2)
             c.number_format = '$#,##0.00'
         elif key is None:
             c.value = ''
         else:
-            # Zero out suppressed keys for standard (tactic-level) tables
             if table_type == 'standard' and key in STANDARD_SUPPRESS_ZERO_KEYS:
                 c.value = 0
                 c.number_format = '#,##0'
@@ -408,20 +429,31 @@ def create_report(df):
         ws.merge_cells(start_row=prior_row, start_column=3, end_row=curr_row, end_column=3)
         row += 1
 
-        # % Change row
+        # % Change row — computed as real values, not formulas, to avoid
+        # Excel caching issues with openpyxl-generated workbooks
         ws.cell(row=row, column=2, value="% Change").border = border
         ws.cell(row=row, column=2).fill = pctfill
         ws.cell(row=row, column=3, value='').border = border
         ws.cell(row=row, column=3).fill = pctfill
+
+        def _pct_change(prior_val, curr_val):
+            try:
+                p = float(prior_val) if prior_val not in (None, '') else 0.0
+                c_ = float(curr_val) if curr_val not in (None, '') else 0.0
+                return round((c_ - p) / p, 6) if p != 0 else 0.0
+            except (TypeError, ValueError):
+                return 0.0
+
         for i, (cname, key) in enumerate(cols[2:], start=4):
             c = ws.cell(row=row, column=i)
             c.border = border
             c.fill = pctfill
-            if key is None:
+            if key is None or key == 'suppress_blank':
                 c.value = ''
             else:
-                L = get_column_letter(i)
-                c.value = f"=IF({L}{prior_row}=0,0,({L}{curr_row}-{L}{prior_row})/{L}{prior_row})"
+                prior_cell = ws.cell(row=prior_row, column=i)
+                curr_cell  = ws.cell(row=curr_row,  column=i)
+                c.value = _pct_change(prior_cell.value, curr_cell.value)
                 c.number_format = '0.0%'
         row += 2
 
@@ -500,7 +532,7 @@ def main():
 
     # ---- Metrics Summary ----
     st.divider()
-    st.subheader("Overall Metrics by Week")
+    st.subheader("📊 Overall Metrics by Week")
     st.caption("Total across all campaigns in the export — use this to sanity check scope before generating.")
 
     summary_metrics = ['Impr.', 'Clicks', 'Cost', 'Address Capture', 'Total Conversions - VBB']
@@ -524,7 +556,7 @@ def main():
 
     # ---- NC Non-Testing Diagnostic ----
     st.divider()
-    st.subheader("NC Non-Testing Scope Check")
+    st.subheader("🔍 NC Non-Testing Scope Check")
     st.caption("Shows what's being included vs excluded — NC Non-Testing should equal All NC minus the labeled buckets.")
 
     labels_col = 'Labels on Campaign: Directly Applied'
@@ -601,7 +633,7 @@ def main():
                 st.markdown("Check the `TODO` comments in the `TABLES` config at the top of the script and verify the label strings match what's in your SA360 export.")
 
         st.download_button(
-            label=f"⬇️ Download {filename}",
+            label=f"Download {filename}",
             data=buf,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
