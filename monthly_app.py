@@ -620,9 +620,8 @@ def generate_summary_insights(df):
             'Lead Form Submission - New': 'Lead Forms',
             'Address Capture': 'Address Captures',
             'Begin Checkout': 'Begin Checkouts',
-            'Quality Sales Call - AN': 'Quality Sales Calls',
-            'Main Sales Number': 'Main Sales Number',
-            'Contact Us Page': 'Contact Us Page'
+            'Quality Sales Call - AN': 'Quality Sales Calls'
+            
         }
         
         up_conversions = []
