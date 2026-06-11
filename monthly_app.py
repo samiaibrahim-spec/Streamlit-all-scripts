@@ -333,7 +333,7 @@ def create_summary_table(df, customer_type, filter_col, filter_value,
         ('Begin Checkout', 'Begin Checkout'),
         ('Total Conversions - VBB', 'Total Conversions - VBB'),
         ('Chat Initiation - Order Services', 'Chat Initiation - Order Services'),
-        ('Quality Sales Calls (Offline)', 'Quality Sales Call - AN'),
+        ('Quality Sales Calls (Offline)', 'Quality Sales Call - AN')
         #('Main Sales Number', 'Main Sales Number'),
         #('Contact Us Page', 'Contact Us Page')
     ]
