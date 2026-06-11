@@ -80,10 +80,10 @@ def add_parsed_columns(df, campaign_col='Campaign'):
     df['Engine'] = parsed.apply(lambda x: x['engine'])
     df['Brand'] = parsed.apply(lambda x: x['brand'])
     # temporary debug statements
-    print("[DEBUG] Brand value counts:")
-    print(df['Brand'].value_counts(dropna=False))
-    print("[DEBUG] Sample campaigns with None brand:")
-    print(df[df['Brand'].isna()]['Campaign'].head(10).tolist())
+    #print("[DEBUG] Brand value counts:")
+    #print(df['Brand'].value_counts(dropna=False))
+    #print("[DEBUG] Sample campaigns with None brand:")
+    #print(df[df['Brand'].isna()]['Campaign'].head(10).tolist())
     
     unparsed_ctype = df[df['Customer Type'].isna()]
     if len(unparsed_ctype) > 0:
@@ -334,8 +334,8 @@ def create_summary_table(df, customer_type, filter_col, filter_value,
         ('Total Conversions - VBB', 'Total Conversions - VBB'),
         ('Chat Initiation - Order Services', 'Chat Initiation - Order Services'),
         ('Quality Sales Calls (Offline)', 'Quality Sales Call - AN'),
-        ('Main Sales Number', 'Main Sales Number'),
-        ('Contact Us Page', 'Contact Us Page')
+        #('Main Sales Number', 'Main Sales Number'),
+        #('Contact Us Page', 'Contact Us Page')
     ]
     
     df_filtered = df[df['Customer Type'] == customer_type].copy()
