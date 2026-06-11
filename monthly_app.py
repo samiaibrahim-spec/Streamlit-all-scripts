@@ -314,6 +314,9 @@ def create_formatted_summaries(df, available_metrics):
     
     return summary_tables
 
+print(f"[DEBUG] Looking for month_dt: {month_dt}")
+print(f"[DEBUG] Available Month_dt values: {df_filtered['Month_dt'].unique()}")
+print(f"[DEBUG] Rows matched: {len(df_filtered[df_filtered['Month_dt'] == month_dt])}")
 
 def create_summary_table(df, customer_type, filter_col, filter_value,
                          current_month_dt, prev_month_dt, year_ago_month_dt):
