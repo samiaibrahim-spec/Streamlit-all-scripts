@@ -877,7 +877,7 @@ def main():
 
         # Display summary tables in the UI
         for table_name, table_df in summary_tables.items():
-            with st.expander(f"📊 {table_name}", expanded=False):
+            with st.expander(f" {table_name}", expanded=False):
                 st.dataframe(table_df, use_container_width=True)
 
         st.markdown("---")
