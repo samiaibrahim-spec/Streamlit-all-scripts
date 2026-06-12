@@ -118,6 +118,8 @@ def prepare_dataframe(df):
         cleaned = df[col].copy()
         placeholder_mask = cleaned.astype(str).str.match(_NUMERIC_PLACEHOLDER_RE)
         cleaned[placeholder_mask] = pd.NA
+        # Strip thousands-separator commas before converting
+        cleaned = cleaned.str.replace(',', '', regex=False) if hasattr(cleaned, 'str') else cleaned
         converted = pd.to_numeric(cleaned, errors='coerce')
         # Use the post-placeholder count as the denominator so placeholders
         # don't inflate it and hide that the column is actually numeric.
