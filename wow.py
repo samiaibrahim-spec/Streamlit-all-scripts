@@ -30,7 +30,8 @@ METRICS = [
     # Conversion window under Campaign > Columns > Conversions before regenerating.
     'Address Capture', 'Begin Checkout',
     #'Main Sales Number', 'Contact Us Page',
-    'Quality Sales Call - AN',
+    #'Quality Sales Call - AN',
+    'Quality Call Tester (web page calls)',
     'Total Conversions - VBB', 'Total Conversion Value - VBB',
     'Chat Initiation - Order Services',
 ]
@@ -39,7 +40,8 @@ TOTAL_ACTIONS_COMPONENTS = [
     'CB eCom Order Tag - New',
     'CB General Lead Form Submission - New',
     'Chat Initiation - Order Services',
-    'Quality Sales Call - AN',
+    #'Quality Sales Call - AN',
+    'Quality Call Tester (web page calls)',
 ]
 
 # Labels used by all other specific campaign buckets — used to define
@@ -105,7 +107,7 @@ STANDARD_COLS = [
     # registers them correctly for the total_actions formula. They are zeroed out during
     # write via the 'standard' table type check in _write_data_row — do NOT change these
     # to suppress_zero or any non-metric key or total_actions will silently drop them.
-    ('Quality Sales Calls', 'Quality Sales Call - AN'),
+    ('Quality Call Tester', 'Quality Call Tester (web page calls)'),
     ('Chat Initiation', 'Chat Initiation - Order Services'),
     ('Total Conversions - VBB', 'Total Conversions - VBB'),
     ('Total Conversion Value - VBB', 'Total Conversion Value - VBB'),
@@ -119,7 +121,7 @@ VBB_COLS = [
     ('eCom Orders', 'CB eCom Order Tag - New'),
     ('Lead Form Submissions', 'CB General Lead Form Submission - New'),
     ('Address Capture', 'Address Capture'), ('Begin Checkout', 'Begin Checkout'),
-    ('Quality Sales Calls', 'Quality Sales Call - AN'),
+    ('Quality Call Tester', 'Quality Call Tester (web page calls)'),
     ('Chat Initiation', 'Chat Initiation - Order Services'),
     ('Total Conversions - VBB', 'Total Conversions - VBB'),
     ('Total Conversion Value - VBB', 'Total Conversion Value - VBB'),
@@ -551,7 +553,7 @@ def main():
 
     # ---- NC Non-Testing Diagnostic ----
     st.divider()
-    st.subheader("🔍 NC Non-Testing Scope Check")
+    st.subheader(" NC Non-Testing Scope Check")
     st.caption("Shows what's being included vs excluded — NC Non-Testing should equal All NC minus the labeled buckets.")
 
     labels_col = 'Labels on Campaign: Directly Applied'
@@ -617,7 +619,7 @@ def main():
     curr_week = pd.to_datetime(weeks[-1]).strftime('%Y-%m-%d')
     filename = f"WoW_Performance_Update_{curr_week}.xlsx"
 
-    if st.button("🚀 Generate Report", type="primary", use_container_width=True):
+    if st.button("Generate Report", type="primary", use_container_width=True):
         with st.spinner("Building Excel report..."):
             buf, skipped = create_report(df)
 
