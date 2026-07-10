@@ -335,7 +335,8 @@ def create_summary_table(df, customer_type, filter_col, filter_value,
         ('Begin Checkout', 'Begin Checkout'),
         ('Total Conversions - VBB', 'Total Conversions - VBB'),
         ('Chat Initiation - Order Services', 'Chat Initiation - Order Services'),
-        ('Quality Sales Calls (Offline)', 'Quality Sales Call - AN')
+        ('Quality Call Tester', 'Quality Call Tester (web page calls)')
+        #('Quality Sales Calls (Offline)', 'Quality Sales Call - AN')
         #('Main Sales Number', 'Main Sales Number'),
         #('Contact Us Page', 'Contact Us Page')
     ]
@@ -622,7 +623,8 @@ def generate_summary_insights(df):
             'Lead Form Submission - New': 'Lead Forms',
             'Address Capture': 'Address Captures',
             'Begin Checkout': 'Begin Checkouts',
-            'Quality Sales Call - AN': 'Quality Sales Calls'
+            'Quality Call Tester (web page calls)':'Quality Call Tester'
+            #'Quality Sales Call - AN': 'Quality Sales Calls'
             
         }
         
